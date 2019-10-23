@@ -1,90 +1,98 @@
-## v3.2.1
-# good for snpEff2human 1.1
+## v3.1.7
+## Fixed for new snpEff output style
 
 ## import libraries
 library(plyr)
+library(readr)
+
 
 
 ## set cutoff. varients present in 'cutoff' or more strains will be removed
 cutoff<- 3
 
 
-
-dir <- "Z:/path/to/snpeffs/"         ## include final '/'
-
+dir <- "Z:/WholeGenomeSequenceData/ningAnalysis/"         ## include final '/'
 
 
-finaldir <- "filtered/"  
 
+finaldir <- "common_to_1_and_5_only/"
+#  chromosomes <- c("I","II","III","IV","V","X")  ## only necesary for the var/chomosome output.
 
 #### preprocessing #####
 
 ## find files
-files <- list.files(dir, pattern = ".tsv")
+files <- list.files(dir, pattern = "tsv")
 nfiles <- length(files)
 
 
 ## read in data
 allCPRC <- NULL
+nRead <- 0
 for(i in 1:nfiles){
   print( paste0( c("Reading... ",files[i]),collapse="") )
-  Ncomments <- max(which(substr(readLines(paste0(dir,files[i]),n=100),1,1)=="#")) 
-  temp <- read.delim(paste0(dir,files[i]), header=T, skip=Ncomments-1)                        ## read in
+  pathToFile <- paste0(dir,files[i])
+  Ncomments <- max(which(substr(readLines(pathToFile,n=100),1,1)=="#"))
+  comment <- readLines(pathToFile, n=Ncomments)
+  temp <- read_delim(pathToFile, delim="\t", comment="", skip = Ncomments-1)              ## read in
+  if(exists("temp")){if(length(temp)>0){nRead<-nRead+1}}
+  
   temp$CPRC <- apply(temp,1,function(x) paste(x[1],x[2],x[4],x[5]))                           ## add CPRC col
   allCPRC <- c(allCPRC,levels(factor(temp$CPRC)))                                             ## add these CPRCs to growing list of all CPRCs
-  name <- paste0(c("x",i),collapse="")                                                        ## build variable name
+  name <- paste0(c("x",i),collapse="")                                                   ## build variable name
   temp$worm <- name
   fname<- unlist(strsplit(files[i],"\\."))[1]
-  ffname <- paste0(fname,"_cut",cutoff)
   CPRCcount <- data.frame(table(allCPRC))
   
-  WORMSAMPLE<-strsplit(as.character(temp$WORMSAMPLE),":")
-  temp$altPercent<-sapply(WORMSAMPLE,function(x) {
-    as.numeric(strsplit(x[2],",")[[1]][2])/as.numeric(x[3])
-    } )
-  assign(paste0(name,"name"), ffname)
+  assign(paste0(name,"name"), fname)
   assign(name, temp)                                                                          ## assign var
   
 }
-print( paste0( c("Read ",nfiles," files."),collapse="") )
+print(paste0("Read ",nRead," of ",nfiles," files."))
 
 
 #### Juicy bits ####### 
 #### Run any of the code blocks you want, in any order.
 
-## find unique variants 
+## identify parental variants (>= cutoff)
 
-CPRCcount <- data.frame(table(allCPRC))                                  ## counts times each CPRC shows up.
+CPRCcount <- data.frame(table(allCPRC))                          ## counts times each CPRC shows up.
 colnames(CPRCcount)[2] <- "numWorms"                                     ## rename  column
 
-ParSummary <- data.frame(table(CPRCcount$numWorms))                      ## aggregate into summary of parental var distribution
+ParSummary <- data.frame(table(CPRCcount$numWorms))                ## aggregate into summary of parental var distribution
 colnames(ParSummary)[2] <- "count"
-barplot(ParSummary$count, names.arg=ParSummary$numWorms, 
-        xlab="# of worms", ylab="# of variants")                         ## plot it out
+barplot(ParSummary$count,names.arg=ParSummary$numWorms,xlab="# of worms", ylab="# of variants") ## plot it out
 
-parental <- parentalRemaining <- CPRCcount[which(CPRCcount$numWorm>=cutoff),]          ## assemble parentals into a DF
-parentalSnpEff <- cbind(temp,"numWorms"=0)[0,]                           ## empty dataframe but with all the col names ready
+parental <- CPRCcount[which(CPRCcount$numWorm>=cutoff),]          ## assemble parentals into a DF
+
+### These lines for pulling out vars common to a subgroup but not all. Requires code be run twice: once for all, once for subgroup.
+# write.table(x1[match(parental$allCPRC,x1$CPRC),], paste0(dir,finaldir, "varsCommonToAll.csv") ,quote=FALSE, sep=",", row.names=FALSE)
+# write.table(x1[match(parental$allCPRC[-match(parental16$allCPRC,parental$allCPRC)],x1$CPRC),], paste0(dir,finaldir, "varsCommonToGroup4.csv") ,quote=FALSE, sep=",", row.names=FALSE)
+
+
 for( i in 1:nfiles){
   varName <- paste0("x",i)
   temp <- get(varName)
-  indexofparentalCPRC <- unique(match(temp$CPRC,as.character(parentalRemaining$allCPRC)))
-  indexofparentalCPRC <- indexofparentalCPRC[!is.na(indexofparentalCPRC)]
-  theseParentalSnpEffs <- temp[which(!is.na(match(temp$CPRC,as.character(parentalRemaining$allCPRC)))),]
-  parentalSnpEff <- rbind(parentalSnpEff,
-                          cbind(theseParentalSnpEffs,
-                                numWorms=  parental$numWorms[match(theseParentalSnpEffs$CPRC,parental$allCPRC)]
-                          )
-                          )
-  parentalRemaining <- parentalRemaining[-c(indexofparentalCPRC),]
   
-  temp <- temp[which(is.na(match(temp$CPRC,as.character(parental$allCPRC)))),]             ## remove parentals from worm data
+  temp <- temp[which(is.na(match(temp$CPRC,parental$allCPRC))),]             ## remove parentals from worm data
+  
   assign(varName, temp)  
 }
-parentalSnpEff <- parentalSnpEff[order(as.numeric(as.roman(gsub("MtDNA","L",as.character(parentalSnpEff$X.CHROM)))),parentalSnpEff$POS),-c(6:24,47,48,50,51)]
 
+### Variants present in a group but not others
+VAR_MUST_BE_ONLY_IN <- c(1, 5)
+CPRCtemp <- CPRCcount[which(CPRCcount$numWorms == length(VAR_MUST_BE_ONLY_IN)),]
+for( i in VAR_MUST_BE_ONLY_IN){
+  varName <- paste0("x",i)
+  temp <- get(varName)
+  CPRCtemp <- CPRCtemp[which(CPRCtemp$allCPRC %in% intersect(temp$CPRC, CPRCtemp$allCPRC)),]
+}
+for( i in 1:nfiles){
+  varName <- paste0("x",i)
+  temp <- get(varName)
+  temp <- temp[which(temp$CPRC %in% CPRCtemp$allCPRC),]
+  assign(varName, temp)  
+}
 
-
-unique(x1$CPRC)[which(unique(x1$CPRC) %in% unique(x2$CPRC))]
 
 ## Extract homozygous mutations
 for( i in 1:nfiles){
@@ -96,15 +104,15 @@ for( i in 1:nfiles){
   assign(varName, temp)  
 }
 
-# ## Remove upstream and downstream mutations
-# for( i in 1:nfiles){
-#   varName <- paste0("x",i)
-#   temp <- get(varName)
-#   
-#   temp <- temp[grep("STREAM",temp$Effect,invert=TRUE),]
-#   
-#   assign(varName, temp)  
-# }
+## Remove upstream and downstream mutations
+for( i in 1:nfiles){
+  varName <- paste0("x",i)
+  temp <- get(varName)
+  
+  temp <- temp[grep("STREAM",temp$EFF_Effect,invert=TRUE),]
+  
+  assign(varName, temp)  
+}
 
 
 
@@ -113,7 +121,8 @@ for( i in 1:nfiles){
   varName <- paste0("x",i)
   temp <- get(varName)
   
-  temp <- temp[grep("intron",temp$ANN_Annotation,invert=TRUE),]
+  temp <- temp[which(temp$EFF_Effect!="intron_variant"),]
+  
   
   assign(varName, temp)  
 }
@@ -123,7 +132,7 @@ for( i in 1:nfiles){
   varName <- paste0("x",i)
   temp <- get(varName)
   
-  temp <- temp[which(temp$ANN_Annotation!="synonymous_variant"),]
+  temp <- temp[which(temp$EFF_Effect!="synonymous_variant"),]
   
   assign(varName, temp)  
 }
@@ -134,27 +143,17 @@ for( i in 1:nfiles){
   varName <- paste0("x",i)
   temp <- get(varName)
   
-  temp <- temp[which(temp$ANN_Annotation!="intergenic_region"),]
+  temp <- temp[which(temp$EFF_Effect!="intergenic_region"),]
   
   assign(varName, temp)  
 }
 
-## remove pseudogenes
+## Remove indels
 for( i in 1:nfiles){
   varName <- paste0("x",i)
   temp <- get(varName)
   
-  temp <- temp[which(temp$ANN_Transcript_BioType!="pseudogene"),]
-  
-  assign(varName, temp)  
-}
-
-## remove "."
-for( i in 1:nfiles){
-  varName <- paste0("x",i)
-  temp <- get(varName)
-  
-  temp <- temp[which(temp$ANN_Gene_Name!="."),]
+  temp <- temp[which(    (apply(as.matrix(as.character(temp[,"REF"])),1,nchar) == 1) & (apply(as.matrix(as.character(temp[,"ALT"])),1,nchar) == 1) ),]
   
   assign(varName, temp)  
 }
@@ -210,18 +209,32 @@ for( i in 1:nfiles){
 }
 
 
+## displays number of variants per chromosome
+for( i in 1:nfiles){
+  varName <- paste0("x",i)
+  temp <- get(varName)
+  print(varName)
+  for (j in 1:length(chromosomes)){
+  print(paste0("  ",chromosomes[j]," ",length(levels(factor(temp$CPRC[which(temp$X.CHROM==chromosomes[j])])))))
+  }
+  assign(varName, temp)  
+}
+
+
 ## write out to a file
+append<-"_1n5"
+
 dir.create(paste0(dir,finaldir))
 for( i in 1:nfiles){
   varName <- paste0("x",i)
   temp <- get(varName)
   tempname <- get(paste0("x",i,"name"))
+  writename <- paste0(tempname,append)
     
-  write.table(temp, paste0(dir,finaldir,tempname, ".tsv") ,quote=FALSE, sep="\t", row.names=FALSE)
-  
+  writeTo <- paste0(dir,finaldir,writename, ".csv")
+  write.table(temp, writeTo ,quote=FALSE, sep=",", row.names=FALSE)
+  print( paste0( c("Wrote to ",writeTo),collapse="") )
 }
-write.table(parentalSnpEff, paste0(dir,finaldir, "parentals.tsv") ,quote=FALSE, sep="\t", row.names=FALSE)
 
-
-write.table(noncomp, paste0(dir,finaldir, "noncomp.csv") ,quote=FALSE, sep="\t", row.names=FALSE)
+write.table(noncomp, paste0(dir,finaldir, "noncomp.csv") ,quote=FALSE, sep=",", row.names=FALSE)
 
