@@ -12,7 +12,7 @@ NOTE:
 
 This script is offered without a GUI. Usage will require a basic understanding of how to use R and comfort in minor edits to the script code.
 
-Open the script and define variables
+Open snpeffFiltering.R and define variables
 ====================================
 
 * ``dir`` is the path to the data. It is expected to be a directory containing a number of .tsv files. Please be sure to include the final ``/``.
