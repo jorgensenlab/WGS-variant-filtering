@@ -3,6 +3,11 @@ WGS-variant-filtering
 
 Basic tools to filter out interesting variants
 
+How to install
+**************
+There's really nothing to do! If you have R installed already, just grab a copy of snpeffFiltering.R and you're ready to go. The only required R library is plyr
+
+
 How to use
 **********
 
