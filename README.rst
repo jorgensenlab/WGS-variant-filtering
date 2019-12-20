@@ -7,7 +7,7 @@ How to use
 **********
 
 NOTE:
-  The script was originally written to accept tabular data output ("EFF") from  `SnpEff <http://snpeff.sourceforge.net/>`_. Subsequently, output from SnpEff changed to be compatible with the more compact VCF "ANN" format. To be compatible with this filtering script (and be easier for a human like yourself to read), you can use SnpEff2Human, or run SnpEff with the option -formatEff 
+  The script was originally written to accept tabular data output ("EFF") from  `SnpEff <http://snpeff.sourceforge.net/>`_. Subsequently, output from SnpEff changed to comply with the more compact VCF "ANN" format. To be compatible with snpeffFiltering.R (and be easier for a human like yourself to read), you can use SnpEff2Human.py or run SnpEff with the option -formatEff 
 
 
 This script is offered without a GUI. Usage will require a basic understanding of how to use R and comfort in minor edits to the script code.
