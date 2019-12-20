@@ -30,7 +30,8 @@ Run the script
 ==============
 The script will read the data, apply the filters, and output the results to ``dir/finaldir/``
 
-Alternatively, the script can be run more interactively. Ensure the first half of the script has been run (up to and including the Preprocessing section), then explore your data before and after runnning individual filters. Filters can be applied in any order.
+Alternatively
+=============, the script can be run more interactively. Ensure the first half of the script has been run (up to and including the Preprocessing section), then explore your data before and after runnning individual filters. Filters can be applied in any order.
 
 
 Extras
